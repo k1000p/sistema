@@ -8,7 +8,7 @@
         </ol>
         <div class="container-fluid">
             <!-- Ejemplo de tabla Listado -->
-            <div class="card">
+            <div class="card shadow-sm">
                 <div class="card-header">
                     <i class="fa fa-align-justify"></i> Categorías
                     <button type="button" @click="abrirModal('categoria','registrar')"   class="btn btn-secondary">
@@ -23,7 +23,7 @@
                                             <option value="nombre">Nombre</option>
                                             <option value="descripcion">Descripción</option>
                                         </select>
-                                <input type="text" id="texto" name="texto" class="form-control" placeholder="Texto a buscar">
+                                <input type="text" id="texto" name="texto" class="form-control bg-light shadow-sm border-0" placeholder="Texto a buscar">
                                 <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Buscar</button>
                             </div>
                         </div>
@@ -72,23 +72,16 @@
                     </table>
                     <nav>
                         <ul class="pagination">
-                            <li class="page-item">
-                                <a class="page-link" href="#">Ant</a>
+                            <li class="page-item" v-if="pagination.current_page > 1">
+                                <a class="page-link" href="#" @click.prevent="cambiarPagina(pagination.current_page - 1)">Ant</a>
                             </li>
-                            <li class="page-item active">
-                                <a class="page-link" href="#">1</a>
+
+                            <li class="page-item" v-for="page in pagesNumber" :key="page" :class="[page == isActived ? 'active' : '']">
+                                <a class="page-link" href="#" @click.prevent="cambiarPagina(page)" v-text="page"></a>
                             </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">2</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">3</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">4</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#">Sig</a>
+
+                            <li class="page-item" v-if="pagination.current_page < pagination.last_page">
+                                <a class="page-link" href="#" @click.prevent="  cambiarPagina(pagination.current_page + 1)">Sig</a>
                             </li>
                         </ul>
                     </nav>
@@ -111,17 +104,17 @@
                             <div class="form-group row">
                                 <label class="col-md-3 form-control-label" for="text-input">Nombre</label>
                                 <div class="col-md-9">
-                                    <input type="text" v-model="nombre" class="form-control" placeholder="Nombre de categoría">
+                                    <input type="text" v-model="nombre" class="form-control bg-light shadow-sm border-0" placeholder="Nombre de categoría" autofocus>
                                 </div>
                             </div>
                             <div class="form-group row">
                                 <label class="col-md-3 form-control-label" for="text-input">Descripción</label>
                                 <div class="col-md-9">
-                                    <input type="text" v-model="descripcion" class="form-control" placeholder="Ingrese la descrpción">
+                                    <input type="text" v-model="descripcion" class="form-control bg-light shadow-sm border-0" placeholder="Ingrese la descrpción">
                                 </div>
                             </div v-show="errorCategoria" class="form-group-row div-error">
-                                <div class="text-center text-error" >
-                                    <div v-for="error in errorMostrarMsjCategoria" :key="error" v-text="error"></div>
+                                <div class="alert text-error" >
+                                    <div class="alert-danger text-center" v-for="error in errorMostrarMsjCategoria" :key="error" v-text="error"></div>
                                 </div>
                             <div></div>
                         </form>
@@ -152,15 +145,54 @@ export default {
             tituloModal : '',
             tipoAccion : 0,
             errorCategoria : 0,
-            errorMostrarMsjCategoria : []
+            errorMostrarMsjCategoria : [],
+            pagination :{
+                'total' : 0,
+                'current_page' : 0,
+                'per_page' : 0,
+                'last_page' : 0,
+                'from' : 0,
+                'to' : 0,
+            },
+            offset : 3
         }
     },
+    computed : {
+         isActived : function(){
+            return this.pagination.current_page;
+         },
+         //Calcula los elementos de la paginación que se van a mostrar
+         pagesNumber : function(){
+             if(!this.pagination.to){
+                return [];
+             }
+             var from = this.pagination.current_page - this.offset;
+             if(from < 1){
+                 from = 1;
+             }
+
+             var to = from + (2 * this.offset);
+             if(to >= this.pagination.last_page){
+                 to = this.pagination.last_page;
+             }
+
+             var pagesArray = [];
+             while(from <= to){
+                 pagesArray.push(from);
+                 from++;
+             }
+             return pagesArray;
+         },
+    },
     methods : {
-        listarCategoria(){
+        listarCategoria(page){
             let me = this;
-            axios.get('/categoria').then(function (response) {
+            var url = '/categoria?page=' + page;
+            axios.get(url).then(function (response) {
                 // handle success
-                me.arrayCategoria = response.data;
+                var respuesta = response.data;
+                me.arrayCategoria = respuesta.categorias.data;
+                me.pagination = respuesta.pagination;
             })
             .catch(function (error) {
                 // handle error
@@ -169,6 +201,14 @@ export default {
             .then(function () {
                 // always executed
             });
+        },
+        cambiarPagina(page){
+            let me = this;
+            //Actualiza la página actual
+            me.pagination.current_page = page;
+            //Hace la petición de envío de datos (la data) de esa página
+            me.listarCategoria(page);
+
         },
         registrarCategoria(){
             if (this.validarCategoria()){
